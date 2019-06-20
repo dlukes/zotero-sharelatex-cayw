@@ -36,7 +36,7 @@
  * Usage
  * -----
  *
- * The extension provides two additional keyboard shortcuts when using
+ * The userscript provides two additional keyboard shortcuts when using
  * ShareLaTeX, which are by default:
  *
  * - Ctrl+. -- calls up the Zotero popup, allows you to put together a
