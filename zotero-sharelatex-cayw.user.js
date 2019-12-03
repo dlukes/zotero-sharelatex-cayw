@@ -4,7 +4,7 @@
 // @namespace       https://github.com/dlukes
 // @author          dlukes
 // @description     Insert citations from Zotero into ShareLaTeX as you write.
-// @match           *://sag.korpus.cz/*
+// @match           *://sharelatex.korpus.cz/*
 // @run-at          document-end
 // @grant           unsafeWindow
 // @grant           GM.xmlHttpRequest
