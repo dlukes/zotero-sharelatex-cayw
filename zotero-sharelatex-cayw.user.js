@@ -62,6 +62,9 @@ function zoteroFetchAndInsert(url, postProcessFunc) {
   GM.xmlHttpRequest({
     method: "GET",
     url: url,
+    headers: {
+      "Zotero-Allowed-Request": true
+    },
     onload: function(resp) {
       var ace = unsafeWindow.ace;
       var editor = ace.edit(document.querySelector(".ace-editor-body"));
