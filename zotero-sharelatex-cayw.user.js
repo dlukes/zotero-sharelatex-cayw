@@ -44,18 +44,61 @@
  * - Ctrl+Shift+. -- inserts a Zotero collection exported as a
  *   Bib(La)TeX bibliography database into the document. This is
  *   intended as an easy way to update your ShareLaTeX .bib file after
- *   you've made edits to the bibliography in Zotero. Currently, it
- *   requires you to hardcode the Zotero collection you want to export.
- *   The default setting (below) exports your entire personal library,
- *   which can take a while if there are many items and the export is
- *   not cached.
+ *   you've made edits to the bibliography in Zotero.
+ *
+ *   It determines the Zotero collection to generate your bibliography
+ *   from by searching your .bib file for a collection declaration in
+ *   the following format:
+ *
+ *     % -*- zotero-sharelatex-cayw-collection: <library-number>/<collection-name>.<format> -*-
+ *
+ *   E.g. the following will generate a biblatex bibliography for a
+ *   collection named NLP within your private Zotero library (0):
+ *
+ *     % -*- zotero-sharelatex-cayw-collection: 0/NLP.biblatex -*-
+ *
+ *   To figure out the identifier for a collection, right-click on the
+ *   collection in Zotero, select Download Better BibTeX export, and
+ *   inspect the generated URLs.
+ *
+ *   If no collection declaration is provided, it will ask whether to
+ *   export your entire personal library, which can take a while if
+ *   there are many items and the export is not cached.
+ *
+ *   Cf. https://retorque.re/zotero-better-bibtex/push-and-pull/ for
+ *   more information.
  */
+
+var COLLECTION_RE = /-\*-\s*zotero-sharelatex-cayw-collection:\s*(.*?)\s*-\*-/;
+var ABSTRACT_RE = /^  abstract = \{[\s\S]*?^(  \w+ = \{)/gm;
 
 function zotError() {
   var msg = "Can't reach the bibliography database! Make sure that Zotero is " +
             "running and the Better BibTeX extension for Zotero is installed.";
   console.error(msg);
   alert(msg);
+}
+
+function zotWarnAndAsk() {
+  var msg = "No collection declaration found in file. Specify one in the following " +
+            "format:\n\n" +
+            "  % -*- zotero-sharelatex-cayw-collection: <library-number>/<collection-name>.<format> -*-\n\n" +
+            "E.g. the following will generate a biblatex bibliography for a collection named " +
+            "NLP within your private Zotero library (0):\n\n" +
+            "  % -*- zotero-sharelatex-cayw-collection: 0/NLP.biblatex -*-\n\n" +
+            "To figure out the identifier for a collection, right-click on the collection " +
+            "in Zotero, select Download Better BibTeX export, and inspect the generated " +
+            "URLs.\n\n" +
+            "As a default, I can also just try to insert a bibliography based on your " +
+            "entire private library, but that may take a while, depending on its size. " +
+            "Proceed?";
+  console.warn(msg);
+  return confirm(msg);
+}
+
+function getAceEditor() {
+  var ace = unsafeWindow.ace;
+  return ace.edit(document.querySelector(".ace-editor-body"));
 }
 
 function zoteroFetchAndInsert(url, postProcessFunc) {
@@ -66,8 +109,7 @@ function zoteroFetchAndInsert(url, postProcessFunc) {
       "Zotero-Allowed-Request": true
     },
     onload: function(resp) {
-      var ace = unsafeWindow.ace;
-      var editor = ace.edit(document.querySelector(".ace-editor-body"));
+      var editor = getAceEditor();
       var content = postProcessFunc(resp.responseText);
       // cursor position = an object of the form {column: x, row: y}
       var cursorPosition = editor.getCursorPosition();
@@ -78,15 +120,22 @@ function zoteroFetchAndInsert(url, postProcessFunc) {
 }
 
 function zoteroInsertBibliography() {
+  var editor = getAceEditor();
+  var doc = editor.session.toString();
+  var match = COLLECTION_RE.exec(doc);
+  var collection;
+  if (match) {
+    collection = "collection?/" + match[1];
+  } else {
+    if (!zotWarnAndAsk()) return;
+    collection = "library?/0/library.biblatex";
+  }
   zoteroFetchAndInsert(
-    // TODO: modify the URL to set the Zotero collection to convert to
-    // Bib(La)TeX and insert -- cf. instructions for Pull Export here:
-    // https://retorque.re/zotero-better-bibtex/push-and-pull/
-    "http://localhost:23119/better-bibtex/collection?/0/library.biblatex",
+    "http://localhost:23119/better-bibtex/" + collection,
     function(responseText) {
       // TODO: you can manipulate the string before it's inserted --
       // e.g. get rid of abstracts
-      return responseText.replace(/^  abstract = \{[\s\S]*?^(  \w+ = \{)/gm, "$1");
+      return responseText.replace(ABSTRACT_RE, "$1");
     }
   );
 }
