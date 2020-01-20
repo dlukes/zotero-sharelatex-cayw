@@ -1,5 +1,5 @@
 // ==UserScript==
-// @version         0.6
+// @version         0.7
 // @name            Zotero ShareLaTeX Cite-as-you-Write
 // @namespace       https://github.com/dlukes
 // @author          dlukes
@@ -70,7 +70,8 @@
  */
 
 var COLLECTION_RE = /-\*-\s*zotero-sharelatex-cayw-collection:\s*(.*?)\s*-\*-/;
-var ABSTRACT_RE = /^  abstract = \{[\s\S]*?^(  \w+ = \{|\})/gm;
+var DROP_FIELDS_RE = /^  (?:abstract|file|keywords) = \{[\s\S]*?^(?=  \w+ = \{|\})/gm;
+var ADD_TRAILING_COMMAS_RE = /(?!^)\}$/gm;
 
 function zotError() {
   var msg = "Can't reach the bibliography database! Make sure that Zotero is " +
@@ -134,8 +135,9 @@ function zoteroInsertBibliography() {
     "http://localhost:23119/better-bibtex/" + collection,
     function(responseText) {
       // TODO: you can manipulate the string before it's inserted --
-      // e.g. get rid of abstracts
-      return responseText.replace(ABSTRACT_RE, "$1");
+      // e.g. get rid of unnecessary fields
+      return responseText.replace(DROP_FIELDS_RE, "")
+                         .replace(ADD_TRAILING_COMMAS_RE, "},");
     }
   );
 }
