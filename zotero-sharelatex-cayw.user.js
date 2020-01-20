@@ -1,5 +1,5 @@
 // ==UserScript==
-// @version         ∞
+// @version         0.6
 // @name            Zotero ShareLaTeX Cite-as-you-Write
 // @namespace       https://github.com/dlukes
 // @author          dlukes
@@ -70,7 +70,7 @@
  */
 
 var COLLECTION_RE = /-\*-\s*zotero-sharelatex-cayw-collection:\s*(.*?)\s*-\*-/;
-var ABSTRACT_RE = /^  abstract = \{[\s\S]*?^(  \w+ = \{)/gm;
+var ABSTRACT_RE = /^  abstract = \{[\s\S]*?^(  \w+ = \{|\})/gm;
 
 function zotError() {
   var msg = "Can't reach the bibliography database! Make sure that Zotero is " +
