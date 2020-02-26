@@ -1,5 +1,5 @@
 // ==UserScript==
-// @version         0.7
+// @version         0.8
 // @name            Zotero ShareLaTeX Cite-as-you-Write
 // @namespace       https://github.com/dlukes
 // @author          dlukes
@@ -70,8 +70,64 @@
  */
 
 var COLLECTION_RE = /-\*-\s*zotero-sharelatex-cayw-collection:\s*(.*?)\s*-\*-/;
-var DROP_FIELDS_RE = /^  (?:abstract|file|keywords) = \{[\s\S]*?^(?=  \w+ = \{|\})/gm;
-var ADD_TRAILING_COMMAS_RE = /(?!^)\}$/gm;
+var DROP_FIELDS = (function() {
+  var conf = ["abstract", "file", "keywords", "eprint", "eprinttype"];
+  var ans = new Set();
+  for (var elem of conf) {
+    ans.add(elem);
+  }
+  return ans;
+})();
+var DROP_FIELDS_FOR_TYPE = (function() {
+  var conf = [
+    ["article", ["url", "urldate"]],
+    ["incollection", ["url", "urldate"]],
+    ["book", ["edition", "volume", "series"]]
+  ];
+  var ans = new Map();
+  for (var pair of conf) {
+    var type = pair[0];
+    var fields = pair[1];
+    var field_set = new Set();
+    for (var field of fields) {
+      field_set.add(field);
+    }
+    ans.set(type, field_set);
+  }
+  return ans;
+})();
+var EMPTY_SET = new Set();
+
+function cleanBib(string) {
+  var lines = string.match(/[^\r\n]+/g);
+  var clean = [];
+  var groups, type, key, field;
+  var skip = false;
+  for (var line of lines) {
+    if (line.match(/^%/)) {
+      continue;
+    } else if (groups = line.match(/^@(.*?)\{(.*),/)) {
+      type = groups[1];
+      key = groups[2];
+      skip = false;
+    } else if (groups = line.match(/^  (.*?) = \{/)) {
+      var field = groups[1];
+      var drop_fields_for_type = DROP_FIELDS_FOR_TYPE.get(type) || EMPTY_SET;
+      skip = DROP_FIELDS.has(field) || drop_fields_for_type.has(field);
+    } else if (line.match(/^\}/)) {
+      skip = false
+    }
+
+    if (!skip) {
+      // make sure trailing commas are present
+      line = line.replace(/(?!^)\}$/, "},");
+      clean.push(line)
+    } else {
+      console.debug("Removing field", field, "in entry type", type, "with key", key);
+    }
+  }
+  return clean.join("\n");
+}
 
 function zotError() {
   var msg = "Can't reach the bibliography database! Make sure that Zotero is " +
@@ -136,8 +192,7 @@ function zoteroInsertBibliography() {
     function(responseText) {
       // TODO: you can manipulate the string before it's inserted --
       // e.g. get rid of unnecessary fields
-      return responseText.replace(DROP_FIELDS_RE, "")
-                         .replace(ADD_TRAILING_COMMAS_RE, "},");
+      return cleanBib(responseText);
     }
   );
 }
