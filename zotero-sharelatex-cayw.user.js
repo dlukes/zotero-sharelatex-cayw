@@ -1,5 +1,5 @@
 // ==UserScript==
-// @version         0.8
+// @version         0.9
 // @name            Zotero ShareLaTeX Cite-as-you-Write
 // @namespace       https://github.com/dlukes
 // @author          dlukes
@@ -9,6 +9,9 @@
 // @grant           unsafeWindow
 // @grant           GM.xmlHttpRequest
 // ==/UserScript==
+
+var LOG_PREFIX = "zotero-sharelatex-cayw:";
+console.debug(LOG_PREFIX, "Initializing.");
 
 var COLLECTION_RE = /-\*-\s*zotero-sharelatex-cayw-collection:\s*(.*?)\s*-\*-/;
 var DROP_FIELDS = (function() {
@@ -64,7 +67,7 @@ function cleanBib(string) {
       line = line.replace(/(?!^)\}$/, "},");
       clean.push(line)
     } else {
-      console.debug("Removing field", field, "in entry type", type, "with key", key);
+      console.debug(LOG_PREFIX, "Removing field", field, "in entry type", type, "with key", key);
     }
   }
   return clean.join("\n");
@@ -73,7 +76,7 @@ function cleanBib(string) {
 function zotError() {
   var msg = "Can't reach the bibliography database! Make sure that Zotero is " +
             "running and the Better BibTeX extension for Zotero is installed.";
-  console.error(msg);
+  console.error(LOG_PREFIX, msg);
   alert(msg);
 }
 
@@ -90,7 +93,7 @@ function zotWarnAndAsk() {
             "As a default, I can also just try to insert a bibliography based on your " +
             "entire private library, but that may take a while, depending on its size. " +
             "Proceed?";
-  console.warn(msg);
+  console.warn(LOG_PREFIX, msg);
   return confirm(msg);
 }
 
@@ -100,6 +103,7 @@ function getAceEditor() {
 }
 
 function zoteroFetchAndInsert(url, postProcessFunc) {
+  console.debug(LOG_PREFIX, "Requesting URL from Better BibTeX", url);
   GM.xmlHttpRequest({
     method: "GET",
     url: url,
@@ -157,3 +161,5 @@ window.onkeyup = function(e) {
     zoteroCite();
   }
 };
+
+console.debug(LOG_PREFIX, "Done initializing.");
