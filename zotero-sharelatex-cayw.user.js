@@ -1,5 +1,5 @@
 // ==UserScript==
-// @version         0.9
+// @version         0.10
 // @name            Zotero ShareLaTeX Cite-as-you-Write
 // @namespace       https://github.com/dlukes
 // @author          dlukes
@@ -9,45 +9,46 @@
 // @grant           unsafeWindow
 // @grant           GM.xmlHttpRequest
 // ==/UserScript==
+"use strict";
 
-var LOG_PREFIX = "zotero-sharelatex-cayw:";
+const LOG_PREFIX = "zotero-sharelatex-cayw:";
 console.debug(LOG_PREFIX, "Initializing.");
 
-var COLLECTION_RE = /-\*-\s*zotero-sharelatex-cayw-collection:\s*(.*?)\s*-\*-/;
-var DROP_FIELDS = (function() {
-  var conf = ["abstract", "file", "keywords", "eprint", "eprinttype"];
-  var ans = new Set();
-  for (var elem of conf) {
+const COLLECTION_RE = /-\*-\s*zotero-sharelatex-cayw-collection:\s*(.*?)\s*-\*-/;
+const DROP_FIELDS = (() => {
+  const conf = ["abstract", "file", "keywords", "eprint", "eprinttype"];
+  const ans = new Set();
+  for (const elem of conf) {
     ans.add(elem);
   }
   return ans;
 })();
-var DROP_FIELDS_FOR_TYPE = (function() {
-  var conf = [
+const DROP_FIELDS_FOR_TYPE = (() => {
+  const conf = [
     ["article", ["url", "urldate"]],
     ["incollection", ["url", "urldate"]],
     ["book", ["edition", "volume", "series"]]
   ];
-  var ans = new Map();
-  for (var pair of conf) {
-    var type = pair[0];
-    var fields = pair[1];
-    var field_set = new Set();
-    for (var field of fields) {
+  const ans = new Map();
+  for (const pair of conf) {
+    const type = pair[0];
+    const fields = pair[1];
+    const field_set = new Set();
+    for (const field of fields) {
       field_set.add(field);
     }
     ans.set(type, field_set);
   }
   return ans;
 })();
-var EMPTY_SET = new Set();
+const EMPTY_SET = new Set();
 
 function cleanBib(string) {
-  var lines = string.match(/[^\r\n]+/g);
-  var clean = [];
-  var groups, type, key, field;
-  var skip = false;
-  for (var line of lines) {
+  const lines = string.match(/[^\r\n]+/g);
+  const clean = [];
+  let groups, type, key, field;
+  let skip = false;
+  for (let line of lines) {
     if (line.match(/^%/)) {
       continue;
     } else if (groups = line.match(/^@(.*?)\{(.*),/)) {
@@ -55,8 +56,8 @@ function cleanBib(string) {
       key = groups[2];
       skip = false;
     } else if (groups = line.match(/^  (.*?) = \{/)) {
-      var field = groups[1];
-      var drop_fields_for_type = DROP_FIELDS_FOR_TYPE.get(type) || EMPTY_SET;
+      field = groups[1];
+      const drop_fields_for_type = DROP_FIELDS_FOR_TYPE.get(type) || EMPTY_SET;
       skip = DROP_FIELDS.has(field) || drop_fields_for_type.has(field);
     } else if (line.match(/^\}/)) {
       skip = false
@@ -74,14 +75,14 @@ function cleanBib(string) {
 }
 
 function zotError() {
-  var msg = "Can't reach the bibliography database! Make sure that Zotero is " +
+  const msg = "Can't reach the bibliography database! Make sure that Zotero is " +
             "running and the Better BibTeX extension for Zotero is installed.";
   console.error(LOG_PREFIX, msg);
   alert(msg);
 }
 
 function zotWarnAndAsk() {
-  var msg = "No collection declaration found in file. Specify one in the following " +
+  const msg = "No collection declaration found in file. Specify one in the following " +
             "format:\n\n" +
             "  % -*- zotero-sharelatex-cayw-collection: <library-number>/<collection-name>.<format> -*-\n\n" +
             "E.g. the following will generate a biblatex bibliography for a collection named " +
@@ -98,12 +99,12 @@ function zotWarnAndAsk() {
 }
 
 function getAceEditor() {
-  var ace = unsafeWindow.ace;
+  const ace = unsafeWindow.ace;
   return ace.edit(document.querySelector(".ace-editor-body"));
 }
 
 function zoteroFetchAndInsert(url, postProcessFunc) {
-  console.debug(LOG_PREFIX, "Requesting URL from Better BibTeX", url);
+  console.debug(LOG_PREFIX, "Sending request to Better BibTeX URL", url);
   GM.xmlHttpRequest({
     method: "GET",
     url: url,
@@ -111,10 +112,10 @@ function zoteroFetchAndInsert(url, postProcessFunc) {
       "Zotero-Allowed-Request": true
     },
     onload: function(resp) {
-      var editor = getAceEditor();
-      var content = postProcessFunc(resp.responseText);
+      const editor = getAceEditor();
+      const content = postProcessFunc(resp.responseText);
       // cursor position = an object of the form {column: x, row: y}
-      var cursorPosition = editor.getCursorPosition();
+      const cursorPosition = editor.getCursorPosition();
       editor.session.insert(cursorPosition, content);
     },
     onerror: zotError
@@ -122,10 +123,10 @@ function zoteroFetchAndInsert(url, postProcessFunc) {
 }
 
 function zoteroInsertBibliography() {
-  var editor = getAceEditor();
-  var doc = editor.session.toString();
-  var match = COLLECTION_RE.exec(doc);
-  var collection;
+  const editor = getAceEditor();
+  const doc = editor.session.toString();
+  const match = COLLECTION_RE.exec(doc);
+  let collection;
   if (match) {
     collection = "collection?/" + match[1];
   } else {
@@ -134,11 +135,9 @@ function zoteroInsertBibliography() {
   }
   zoteroFetchAndInsert(
     "http://localhost:23119/better-bibtex/" + collection,
-    function(responseText) {
-      // TODO: you can manipulate the string before it's inserted --
-      // e.g. get rid of unnecessary fields
-      return cleanBib(responseText);
-    }
+    // TODO: you can manipulate the string before it's inserted -- e.g.
+    // get rid of unnecessary fields
+    cleanBib,
   );
 }
 
@@ -146,18 +145,16 @@ function zoteroCite() {
   zoteroFetchAndInsert(
     // TODO: customize citation format by modifying the URL
     "http://localhost:23119/better-bibtex/cayw?format=latex",
-    function(responseText) {
-      // TODO: you can manipulate the string before it's inserted
-      return responseText;
-    }
+    // TODO: you can manipulate the string before it's inserted
+    responseText => responseText,
   );
 }
 
-window.onkeyup = function(e) {
+window.onkeyup = (ev) => {
   // TODO: you can customize the keyboard shortcuts here
-  if (e.ctrlKey && e.shiftKey && e.keyCode === 190) {
+  if (ev.ctrlKey && ev.shiftKey && ev.keyCode === 190) {
     zoteroInsertBibliography();
-  } else if (e.ctrlKey && e.keyCode === 190) {
+  } else if (ev.ctrlKey && ev.keyCode === 190) {
     zoteroCite();
   }
 };
