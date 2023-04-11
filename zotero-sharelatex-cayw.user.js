@@ -4,7 +4,7 @@
 // @namespace       https://github.com/dlukes
 // @author          dlukes
 // @description     Insert citations from Zotero into ShareLaTeX as you write.
-// @match           *://sharelatex.korpus.cz/*
+// @match           *://www.overleaf.com/*
 // @run-at          document-end
 // @grant           unsafeWindow
 // @grant           GM.xmlHttpRequest
@@ -98,10 +98,19 @@ function zotWarnAndAsk() {
   return confirm(msg);
 }
 
-function getAceEditor() {
-  const ace = unsafeWindow.ace;
-  return ace.edit(document.querySelector(".ace-editor-body"));
+function getDocumentText() {
+  return unsafeWindow._ide.$scope.editor.sharejs_doc.doc._doc.getText()
 }
+
+function makeInsert(text) {
+  const event = new ClipboardEvent('paste', {
+    dataType: 'text/plain',
+  	data: text
+  });
+  const element = document.activeElement;
+  element.dispatchEvent(event);
+}
+
 
 function zoteroFetchAndInsert(url, postProcessFunc) {
   console.debug(LOG_PREFIX, "Sending request to Better BibTeX URL", url);
@@ -112,19 +121,16 @@ function zoteroFetchAndInsert(url, postProcessFunc) {
       "Zotero-Allowed-Request": true
     },
     onload: function(resp) {
-      const editor = getAceEditor();
       const content = postProcessFunc(resp.responseText);
-      // cursor position = an object of the form {column: x, row: y}
-      const cursorPosition = editor.getCursorPosition();
-      editor.session.insert(cursorPosition, content);
+      // console.debug(content);
+			makeInsert(content);
     },
     onerror: zotError
   });
 }
 
 function zoteroInsertBibliography() {
-  const editor = getAceEditor();
-  const doc = editor.session.toString();
+  const doc = getDocumentText();
   const match = COLLECTION_RE.exec(doc);
   let collection;
   if (match) {
