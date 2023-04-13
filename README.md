@@ -1,3 +1,9 @@
+!!! NOT UPDATED FOR OVERLEAF COMMUNITY EDITION !!!
+==================================================
+
+Please take a pick from one of the active forks, which may work with
+current versions of Overleaf: https://github.com/dlukes/zotero-sharelatex-cayw/forks
+
 Zotero ShareLaTeX Cite-as-you-Write
 ===================================
 
